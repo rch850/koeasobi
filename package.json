@@ -6,7 +6,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "start": "rimraf docs/*; parcel --out-dir docs index.html"
+    "start": "rimraf docs/*; parcel --out-dir docs --public-url /koeasobi/ index.html"
   },
   "dependencies": {
     "fft.js": "^4.0.3",
