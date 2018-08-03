@@ -957,9 +957,11 @@ var __importDefault = this && this.__importDefault || function (mod) {
 exports.__esModule = true;
 var fft_js_1 = __importDefault(require("fft.js"));
 var hyperapp_1 = require("hyperapp");
-var state = {};
+var state = {
+    fftSize: 4096
+};
 var actions = {
-    onChangeFile: function onChangeFile(event) {
+    changeFile: function changeFile(event) {
         return function (state) {
             var file = event.target.files[0];
             console.log(file);
@@ -970,12 +972,19 @@ var actions = {
             reader.readAsArrayBuffer(file);
             return state;
         };
+    },
+    setFftSize: function setFftSize(event) {
+        return function (state) {
+            return { fftSize: event.value };
+        };
     }
 };
 var view = function view(state, actions) {
     return hyperapp_1.h("div", null, hyperapp_1.h("audio", { id: "player", controls: true }), hyperapp_1.h("br", null), hyperapp_1.h("input", { type: "file", accept: "audio/*", capture: "microphone", onchange: function onchange(event) {
-            return actions.onChangeFile(event);
-        } }), hyperapp_1.h("br", null), hyperapp_1.h("canvas", { id: "canvas", width: "512", height: "512" }));
+            return actions.changeFile(event);
+        } }), hyperapp_1.h("br", null), hyperapp_1.h("label", null, "FFT Size:", hyperapp_1.h("input", { value: state.fftSize, oninput: function oninput(event) {
+            return actions.setFftSize({ value: event.target.value });
+        } })), hyperapp_1.h("br", null), hyperapp_1.h("canvas", { id: "canvas", width: "512", height: "512" }));
 };
 hyperapp_1.app(state, actions, view, document.body);
 //---
@@ -1007,8 +1016,9 @@ function processBuffer(audioBuffer) {
             continue;
         }
         var myImageData = canvasContext.createImageData(512, 512);
-        var fftSize = 4096;
-        for (var chunk = 0; chunk < Math.floor(channelData.length / 4096); chunk++) {
+        var fftSize = state.fftSize;
+        var chunkCount = Math.floor(channelData.length / state.fftSize);
+        for (var chunk = 0; chunk < chunkCount; chunk++) {
             var f = new fft_js_1["default"](fftSize);
             var inArray = new Array(fftSize);
             for (var i = 0; i < inArray.length; i++) {
@@ -1082,7 +1092,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = '' || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + '54204' + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + '60932' + '/');
   ws.onmessage = function (event) {
     var data = JSON.parse(event.data);
 
@@ -1224,4 +1234,4 @@ function hmrAccept(bundle, id) {
   });
 }
 },{}]},{},["node_modules/parcel-bundler/src/builtins/hmr-runtime.js","index.tsx"], null)
-//# sourceMappingURL=/koeasobi/koeasobi.fea9016d.map
+//# sourceMappingURL=/koeasobi/koeasobi.431979d8.map

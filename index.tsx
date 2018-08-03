@@ -2,10 +2,12 @@ import FFT from 'fft.js'
 
 import { h, app } from 'hyperapp'
 
-const state = {}
+const state = {
+  fftSize: 4096
+}
 
 const actions = {
-  onChangeFile: event => state => {
+  changeFile: event => state => {
     let file = (event.target as HTMLInputElement).files[0]
     console.log(file)
 
@@ -15,6 +17,9 @@ const actions = {
     }
     reader.readAsArrayBuffer(file)
     return state
+  },
+  setFftSize: event => state => {
+    return { fftSize: event.value }
   }
 }
 
@@ -26,8 +31,16 @@ const view = (state, actions) => (
       type="file"
       accept="audio/*"
       capture="microphone"
-      onchange={event => actions.onChangeFile(event)}
+      onchange={event => actions.changeFile(event)}
     />
+    <br />
+    <label>
+      FFT Size:
+      <input
+        value={state.fftSize}
+        oninput={event => actions.setFftSize({ value: event.target.value })}
+      />
+    </label>
     <br />
     <canvas id="canvas" width="512" height="512" />
   </div>
@@ -75,13 +88,10 @@ function processBuffer(audioBuffer: AudioBuffer): AudioBuffer {
     }
 
     const myImageData = canvasContext.createImageData(512, 512)
-    const fftSize = 4096
+    const fftSize = state.fftSize
+    const chunkCount = Math.floor(channelData.length / state.fftSize)
 
-    for (
-      let chunk = 0;
-      chunk < Math.floor(channelData.length / 4096);
-      chunk++
-    ) {
+    for (let chunk = 0; chunk < chunkCount; chunk++) {
       const f = new FFT(fftSize)
       const inArray = new Array(fftSize)
       for (let i = 0; i < inArray.length; i++) {
