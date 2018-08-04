@@ -958,7 +958,8 @@ exports.__esModule = true;
 var fft_js_1 = __importDefault(require("fft.js"));
 var hyperapp_1 = require("hyperapp");
 var state = {
-    fftSize: 4096
+    fftSize: 4096,
+    scale: 0
 };
 var actions = {
     changeFile: function changeFile(event) {
@@ -967,7 +968,7 @@ var actions = {
             console.log(file);
             var reader = new FileReader();
             reader.onload = function () {
-                processArrayBuffer(reader.result);
+                processArrayBuffer(reader.result, state);
             };
             reader.readAsArrayBuffer(file);
             return state;
@@ -977,6 +978,12 @@ var actions = {
         return function (state) {
             return { fftSize: event.value };
         };
+    },
+    setScale: function setScale(event) {
+        return function (state) {
+            console.log(state);
+            return { scale: event.value };
+        };
     }
 };
 var view = function view(state, actions) {
@@ -984,24 +991,26 @@ var view = function view(state, actions) {
             return actions.changeFile(event);
         } }), hyperapp_1.h("br", null), hyperapp_1.h("label", null, "FFT Size:", hyperapp_1.h("input", { value: state.fftSize, oninput: function oninput(event) {
             return actions.setFftSize({ value: event.target.value });
+        } })), hyperapp_1.h("br", null), hyperapp_1.h("label", null, "Scale:", hyperapp_1.h("input", { type: "number", value: state.scale, oninput: function oninput(event) {
+            return actions.setScale({ value: event.target.value });
         } })), hyperapp_1.h("br", null), hyperapp_1.h("canvas", { id: "canvas", width: "512", height: "512" }));
 };
 hyperapp_1.app(state, actions, view, document.body);
 //---
 var audioCtx = new window.AudioContext();
-function processArrayBuffer(arrayBuffer) {
+function processArrayBuffer(arrayBuffer, state) {
     audioCtx.decodeAudioData(arrayBuffer).then(function (decodedData) {
         console.log(decodedData);
         // process buffer and play it.
         var source = audioCtx.createBufferSource();
-        source.buffer = processBuffer(decodedData);
+        source.buffer = processBuffer(decodedData, state);
         source.connect(audioCtx.destination);
         source.start();
     }, function (error) {
         console.error(error);
     });
 }
-function processBuffer(audioBuffer) {
+function processBuffer(audioBuffer, state) {
     console.log(audioBuffer.length);
     var canvas = document.querySelector('canvas');
     var canvasContext = canvas.getContext('2d');
@@ -1017,7 +1026,10 @@ function processBuffer(audioBuffer) {
         }
         var myImageData = canvasContext.createImageData(512, 512);
         var fftSize = state.fftSize;
+        var ratio = 1.059463094;
         var chunkCount = Math.floor(channelData.length / state.fftSize);
+        console.log(state);
+        console.log(Math.pow(ratio, Number(state.scale)));
         for (var chunk = 0; chunk < chunkCount; chunk++) {
             var f = new fft_js_1["default"](fftSize);
             var inArray = new Array(fftSize);
@@ -1033,17 +1045,16 @@ function processBuffer(audioBuffer) {
                     maxInfo = { freq: i, value: spectrum[i] };
                 }
             }
-            // const ratio = 1.059463094
-            // for (let i = spectrum.length - 1; i >= 0; i--) {
-            //     if (i >= 2048) { spectrum[i] = 0 }
-            //     if (i < 2048) { spectrum[Math.floor(i * ratio * ratio)] = spectrum[i]; spectrum[i] = 0 }
-            // }
-            f.completeSpectrum(spectrum);
-            // console.log(spectrum)
+            var spectrumNew = f.createComplexArray();
+            for (var i = 0; i < spectrum.length; i++) {
+                spectrumNew[Math.floor(i * Math.pow(ratio, state.scale))] = spectrum[i];
+            }
+            f.completeSpectrum(spectrumNew);
+            // console.log(spectrumNew)
             // draw spectrum
-            for (var y = 0; y < spectrum.length; y += 2) {
+            for (var y = 0; y < spectrumNew.length; y += 2) {
                 var yy = Math.floor(y / (fftSize * 2) * 512);
-                myImageData.data[(yy * 512 + chunk) * 4] += spectrum[y] * 10;
+                myImageData.data[(yy * 512 + chunk) * 4] += spectrumNew[y] * 10;
                 myImageData.data[(yy * 512 + chunk) * 4 + 3] = 255;
             }
             myImageData.data[(maxInfo.freq * 512 + chunk) * 4 + 0] = 255;
@@ -1051,7 +1062,7 @@ function processBuffer(audioBuffer) {
             myImageData.data[(maxInfo.freq * 512 + chunk) * 4 + 2] = 255;
             // console.log(`${maxInfo.freq} => ${maxInfo.value}`)
             var resultComplex = f.createComplexArray();
-            f.inverseTransform(resultComplex, spectrum);
+            f.inverseTransform(resultComplex, spectrumNew);
             var resultReal = f.fromComplexArray(resultComplex);
             // console.log(resultReal)
             for (var i = 0; i < resultReal.length; i++) {
@@ -1092,7 +1103,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = '' || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + '60932' + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + '62672' + '/');
   ws.onmessage = function (event) {
     var data = JSON.parse(event.data);
 
@@ -1234,4 +1245,4 @@ function hmrAccept(bundle, id) {
   });
 }
 },{}]},{},["node_modules/parcel-bundler/src/builtins/hmr-runtime.js","index.tsx"], null)
-//# sourceMappingURL=/koeasobi/koeasobi.431979d8.map
+//# sourceMappingURL=/koeasobi/koeasobi.fea9016d.map

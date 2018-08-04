@@ -3,7 +3,8 @@ import FFT from 'fft.js'
 import { h, app } from 'hyperapp'
 
 const state = {
-  fftSize: 4096
+  fftSize: 4096,
+  scale: 0
 }
 
 const actions = {
@@ -13,13 +14,17 @@ const actions = {
 
     let reader = new FileReader()
     reader.onload = () => {
-      processArrayBuffer(reader.result)
+      processArrayBuffer(reader.result, state)
     }
     reader.readAsArrayBuffer(file)
     return state
   },
   setFftSize: event => state => {
     return { fftSize: event.value }
+  },
+  setScale: event => state => {
+    console.log(state)
+    return { scale: event.value }
   }
 }
 
@@ -42,6 +47,15 @@ const view = (state, actions) => (
       />
     </label>
     <br />
+    <label>
+      Scale:
+      <input
+        type="number"
+        value={state.scale}
+        oninput={event => actions.setScale({ value: event.target.value })}
+      />
+    </label>
+    <br />
     <canvas id="canvas" width="512" height="512" />
   </div>
 )
@@ -52,14 +66,14 @@ app(state, actions, view, document.body)
 
 const audioCtx = new window.AudioContext()
 
-function processArrayBuffer(arrayBuffer: ArrayBuffer) {
+function processArrayBuffer(arrayBuffer: ArrayBuffer, state) {
   audioCtx.decodeAudioData(arrayBuffer).then(
     decodedData => {
       console.log(decodedData)
 
       // process buffer and play it.
       let source = audioCtx.createBufferSource()
-      source.buffer = processBuffer(decodedData)
+      source.buffer = processBuffer(decodedData, state)
       source.connect(audioCtx.destination)
       source.start()
     },
@@ -69,7 +83,7 @@ function processArrayBuffer(arrayBuffer: ArrayBuffer) {
   )
 }
 
-function processBuffer(audioBuffer: AudioBuffer): AudioBuffer {
+function processBuffer(audioBuffer: AudioBuffer, state): AudioBuffer {
   console.log(audioBuffer.length)
 
   const canvas = document.querySelector('canvas')
@@ -89,7 +103,10 @@ function processBuffer(audioBuffer: AudioBuffer): AudioBuffer {
 
     const myImageData = canvasContext.createImageData(512, 512)
     const fftSize = state.fftSize
+    const ratio = 1.059463094
     const chunkCount = Math.floor(channelData.length / state.fftSize)
+    console.log(state)
+    console.log(Math.pow(ratio, Number(state.scale)))
 
     for (let chunk = 0; chunk < chunkCount; chunk++) {
       const f = new FFT(fftSize)
@@ -109,19 +126,18 @@ function processBuffer(audioBuffer: AudioBuffer): AudioBuffer {
         }
       }
 
-      // const ratio = 1.059463094
-      // for (let i = spectrum.length - 1; i >= 0; i--) {
-      //     if (i >= 2048) { spectrum[i] = 0 }
-      //     if (i < 2048) { spectrum[Math.floor(i * ratio * ratio)] = spectrum[i]; spectrum[i] = 0 }
-      // }
+      const spectrumNew = f.createComplexArray()
+      for (let i = 0; i < spectrum.length; i++) {
+        spectrumNew[Math.floor(i * Math.pow(ratio, state.scale))] = spectrum[i]
+      }
 
-      f.completeSpectrum(spectrum)
-      // console.log(spectrum)
+      f.completeSpectrum(spectrumNew)
+      // console.log(spectrumNew)
 
       // draw spectrum
-      for (let y = 0; y < spectrum.length; y += 2) {
+      for (let y = 0; y < spectrumNew.length; y += 2) {
         const yy = Math.floor((y / (fftSize * 2)) * 512)
-        myImageData.data[(yy * 512 + chunk) * 4] += spectrum[y] * 10
+        myImageData.data[(yy * 512 + chunk) * 4] += spectrumNew[y] * 10
         myImageData.data[(yy * 512 + chunk) * 4 + 3] = 255
       }
       myImageData.data[(maxInfo.freq * 512 + chunk) * 4 + 0] = 255
@@ -130,7 +146,7 @@ function processBuffer(audioBuffer: AudioBuffer): AudioBuffer {
       // console.log(`${maxInfo.freq} => ${maxInfo.value}`)
 
       const resultComplex = f.createComplexArray()
-      f.inverseTransform(resultComplex, spectrum)
+      f.inverseTransform(resultComplex, spectrumNew)
       const resultReal = f.fromComplexArray(resultComplex)
       // console.log(resultReal)
 
