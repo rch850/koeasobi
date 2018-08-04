@@ -981,7 +981,6 @@ var actions = {
     },
     setScale: function setScale(event) {
         return function (state) {
-            console.log(state);
             return { scale: event.value };
         };
     }
@@ -1028,8 +1027,6 @@ function processBuffer(audioBuffer, state) {
         var fftSize = state.fftSize;
         var ratio = 1.059463094;
         var chunkCount = Math.floor(channelData.length / state.fftSize);
-        console.log(state);
-        console.log(Math.pow(ratio, Number(state.scale)));
         for (var chunk = 0; chunk < chunkCount; chunk++) {
             var f = new fft_js_1["default"](fftSize);
             var inArray = new Array(fftSize);
@@ -1103,7 +1100,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = '' || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + '62672' + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + '52377' + '/');
   ws.onmessage = function (event) {
     var data = JSON.parse(event.data);
 

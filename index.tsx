@@ -23,7 +23,6 @@ const actions = {
     return { fftSize: event.value }
   },
   setScale: event => state => {
-    console.log(state)
     return { scale: event.value }
   }
 }
@@ -105,8 +104,6 @@ function processBuffer(audioBuffer: AudioBuffer, state): AudioBuffer {
     const fftSize = state.fftSize
     const ratio = 1.059463094
     const chunkCount = Math.floor(channelData.length / state.fftSize)
-    console.log(state)
-    console.log(Math.pow(ratio, Number(state.scale)))
 
     for (let chunk = 0; chunk < chunkCount; chunk++) {
       const f = new FFT(fftSize)
