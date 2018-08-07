@@ -1066,17 +1066,17 @@ var actions = {
     }
 };
 var view = function view(state, actions) {
-    return hyperapp_1.h("div", null, hyperapp_1.h("audio", { id: "player", controls: true }), hyperapp_1.h("br", null), hyperapp_1.h("input", { type: "file", accept: "audio/*", capture: "microphone", onchange: function onchange(event) {
+    return hyperapp_1.h("div", { "class": "section" }, hyperapp_1.h("audio", { id: "player", controls: true }), hyperapp_1.h("div", { "class": "field" }, hyperapp_1.h("input", { type: "file", accept: "audio/*", capture: "microphone", onchange: function onchange(event) {
             return actions.changeFile(event);
-        } }), hyperapp_1.h("br", null), hyperapp_1.h("label", null, "FFT Size:", hyperapp_1.h("input", { value: state.fftSize, oninput: function oninput(event) {
+        } })), hyperapp_1.h("div", { "class": "field" }, hyperapp_1.h("label", { "class": "label" }, "FFT Size"), hyperapp_1.h("div", { "class": "control" }, hyperapp_1.h("input", { "class": "input", value: state.fftSize, oninput: function oninput(event) {
             var value = Number(event.target.value);
             if (isNaN(value)) return;
             actions.setFftSize({ value: value });
-        } })), hyperapp_1.h("br", null), hyperapp_1.h("label", null, "Scale:", hyperapp_1.h("input", { type: "number", value: state.scale, oninput: function oninput(event) {
+        } }))), hyperapp_1.h("div", { "class": "field" }, hyperapp_1.h("label", { "class": "label" }, "Scale"), hyperapp_1.h("div", { "class": "control" }, hyperapp_1.h("input", { "class": "input", type: "number", value: state.scale, oninput: function oninput(event) {
             var value = Number(event.target.value);
             if (isNaN(value)) return;
             actions.setScale({ value: value });
-        } })), hyperapp_1.h("br", null), hyperapp_1.h("canvas", { id: "canvas", width: "512", height: "512" }));
+        } }))), hyperapp_1.h("canvas", { id: "canvas", width: "512", height: "512" }));
 };
 hyperapp_1.app(state, actions, view, document.body);
 },{"hyperapp":"node_modules/hyperapp/src/index.js","./audio":"audio.ts"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
@@ -1108,7 +1108,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = '' || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + '52377' + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + '53717' + '/');
   ws.onmessage = function (event) {
     var data = JSON.parse(event.data);
 

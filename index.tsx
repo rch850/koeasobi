@@ -31,41 +31,49 @@ const actions = {
 }
 
 const view = (state: State, actions) => (
-  <div>
+  <div class="section">
     <audio id="player" controls />
-    <br />
-    <input
-      type="file"
-      accept="audio/*"
-      capture="microphone"
-      onchange={event => actions.changeFile(event)}
-    />
-    <br />
-    <label>
-      FFT Size:
+
+    <div class="field">
       <input
-        value={state.fftSize}
-        oninput={event => {
-          const value = Number(event.target.value)
-          if (isNaN(value)) return
-          actions.setFftSize({ value })
-        }}
+        type="file"
+        accept="audio/*"
+        capture="microphone"
+        onchange={event => actions.changeFile(event)}
       />
-    </label>
-    <br />
-    <label>
-      Scale:
-      <input
-        type="number"
-        value={state.scale}
-        oninput={event => {
-          const value = Number(event.target.value)
-          if (isNaN(value)) return
-          actions.setScale({ value })
-        }}
-      />
-    </label>
-    <br />
+    </div>
+
+    <div class="field">
+      <label class="label">FFT Size</label>
+      <div class="control">
+        <input
+          class="input"
+          value={state.fftSize}
+          oninput={event => {
+            const value = Number(event.target.value)
+            if (isNaN(value)) return
+            actions.setFftSize({ value })
+          }}
+        />
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="label">Scale</label>
+      <div class="control">
+        <input
+          class="input"
+          type="number"
+          value={state.scale}
+          oninput={event => {
+            const value = Number(event.target.value)
+            if (isNaN(value)) return
+            actions.setScale({ value })
+          }}
+        />
+      </div>
+    </div>
+
     <canvas id="canvas" width="512" height="512" />
   </div>
 )
