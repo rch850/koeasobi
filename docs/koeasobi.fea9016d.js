@@ -1042,9 +1042,8 @@ var state = {
     scale: 0
 };
 var actions = {
-    changeFile: function changeFile(event) {
+    setFile: function setFile(file) {
         return function (state) {
-            var file = event.target.files[0];
             console.log(file);
             var reader = new FileReader();
             reader.onload = function () {
@@ -1054,28 +1053,26 @@ var actions = {
             return state;
         };
     },
-    setFftSize: function setFftSize(event) {
+    setFftSize: function setFftSize(value) {
         return function (state) {
-            return { fftSize: event.value };
+            if (isNaN(value)) return;
+            return { fftSize: value };
         };
     },
-    setScale: function setScale(event) {
+    setScale: function setScale(value) {
         return function (state) {
-            return { scale: event.value };
+            if (isNaN(value)) return;
+            return { scale: value };
         };
     }
 };
 var view = function view(state, actions) {
     return hyperapp_1.h("div", { "class": "section" }, hyperapp_1.h("audio", { id: "player", controls: true }), hyperapp_1.h("div", { "class": "field" }, hyperapp_1.h("input", { type: "file", accept: "audio/*", capture: "microphone", onchange: function onchange(event) {
-            return actions.changeFile(event);
+            actions.setFile(event.target.files[0]);
         } })), hyperapp_1.h("div", { "class": "field" }, hyperapp_1.h("label", { "class": "label" }, "FFT Size"), hyperapp_1.h("div", { "class": "control" }, hyperapp_1.h("input", { "class": "input", value: state.fftSize, oninput: function oninput(event) {
-            var value = Number(event.target.value);
-            if (isNaN(value)) return;
-            actions.setFftSize({ value: value });
+            actions.setFftSize(Number(event.target.value));
         } }))), hyperapp_1.h("div", { "class": "field" }, hyperapp_1.h("label", { "class": "label" }, "Scale"), hyperapp_1.h("div", { "class": "control" }, hyperapp_1.h("input", { "class": "input", type: "number", value: state.scale, oninput: function oninput(event) {
-            var value = Number(event.target.value);
-            if (isNaN(value)) return;
-            actions.setScale({ value: value });
+            actions.setScale(Number(event.target.value));
         } }))), hyperapp_1.h("canvas", { id: "canvas", width: "512", height: "512" }));
 };
 hyperapp_1.app(state, actions, view, document.body);
@@ -1108,7 +1105,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = '' || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + '53717' + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + '54784' + '/');
   ws.onmessage = function (event) {
     var data = JSON.parse(event.data);
 

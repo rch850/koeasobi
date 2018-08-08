@@ -1,18 +1,24 @@
-import { h, app } from 'hyperapp'
+import { h, app, ActionsType, View } from 'hyperapp'
 import { processArrayBuffer } from './audio'
 
 interface State {
   fftSize: number
   scale: number
 }
+
 const state: State = {
   fftSize: 4096,
   scale: 0
 }
 
-const actions = {
-  changeFile: event => (state: State) => {
-    let file = (event.target as HTMLInputElement).files[0]
+interface Actions {
+  setFile(file: File): State
+  setFftSize(value: number): State
+  setScale(value: number): State
+}
+
+const actions: ActionsType<State, Actions> = {
+  setFile: (file: File) => state => {
     console.log(file)
 
     let reader = new FileReader()
@@ -22,15 +28,17 @@ const actions = {
     reader.readAsArrayBuffer(file)
     return state
   },
-  setFftSize: event => (state: State) => {
-    return { fftSize: event.value }
+  setFftSize: (value: number) => state => {
+    if (isNaN(value)) return
+    return { fftSize: value }
   },
-  setScale: event => (state: State) => {
-    return { scale: event.value }
+  setScale: (value: number) => state => {
+    if (isNaN(value)) return
+    return { scale: value }
   }
 }
 
-const view = (state: State, actions) => (
+const view: View<State, Actions> = (state, actions) => (
   <div class="section">
     <audio id="player" controls />
 
@@ -39,7 +47,9 @@ const view = (state: State, actions) => (
         type="file"
         accept="audio/*"
         capture="microphone"
-        onchange={event => actions.changeFile(event)}
+        onchange={event => {
+          actions.setFile(event.target.files[0])
+        }}
       />
     </div>
 
@@ -50,9 +60,7 @@ const view = (state: State, actions) => (
           class="input"
           value={state.fftSize}
           oninput={event => {
-            const value = Number(event.target.value)
-            if (isNaN(value)) return
-            actions.setFftSize({ value })
+            actions.setFftSize(Number(event.target.value))
           }}
         />
       </div>
@@ -66,9 +74,7 @@ const view = (state: State, actions) => (
           type="number"
           value={state.scale}
           oninput={event => {
-            const value = Number(event.target.value)
-            if (isNaN(value)) return
-            actions.setScale({ value })
+            actions.setScale(Number(event.target.value))
           }}
         />
       </div>
@@ -78,4 +84,4 @@ const view = (state: State, actions) => (
   </div>
 )
 
-app(state, actions, view, document.body)
+app<State, Actions>(state, actions, view, document.body)
