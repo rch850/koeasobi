@@ -4,6 +4,7 @@ import { processArrayBuffer } from './audio'
 interface State {
   fftSize: number
   scale: number
+  sourceNode?: AudioBufferSourceNode
 }
 
 const state: State = {
@@ -13,20 +14,29 @@ const state: State = {
 
 interface Actions {
   setFile(file: File): State
+  setProcessResult(sourceNode: AudioBufferSourceNode): State
   setFftSize(value: number): State
   setScale(value: number): State
 }
 
 const actions: ActionsType<State, Actions> = {
-  setFile: (file: File) => state => {
+  setFile: (file: File) => (state, actions) => {
     console.log(file)
 
     let reader = new FileReader()
     reader.onload = () => {
-      processArrayBuffer(reader.result, state.fftSize, state.scale)
+      if (state.sourceNode) state.sourceNode.stop()
+      processArrayBuffer(reader.result, state.fftSize, state.scale).then(
+        result => {
+          actions.setProcessResult(result.sourceNode)
+        }
+      )
     }
     reader.readAsArrayBuffer(file)
     return state
+  },
+  setProcessResult: (sourceNode: AudioBufferSourceNode) => state => {
+    return { sourceNode }
   },
   setFftSize: (value: number) => state => {
     if (isNaN(value)) return
@@ -49,6 +59,7 @@ const view: View<State, Actions> = (state, actions) => (
         capture="microphone"
         onchange={event => {
           actions.setFile(event.target.files[0])
+          event.target.value = ''
         }}
       />
     </div>

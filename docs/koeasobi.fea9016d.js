@@ -958,15 +958,14 @@ exports.__esModule = true;
 var fft_js_1 = __importDefault(require("fft.js"));
 var audioCtx = new window.AudioContext();
 function processArrayBuffer(arrayBuffer, fftSize, scale) {
-    audioCtx.decodeAudioData(arrayBuffer).then(function (decodedData) {
+    return audioCtx.decodeAudioData(arrayBuffer).then(function (decodedData) {
         console.log(decodedData);
         // process buffer and play it.
         var source = audioCtx.createBufferSource();
         source.buffer = processAudioBuffer(decodedData, fftSize, scale);
         source.connect(audioCtx.destination);
         source.start();
-    }, function (error) {
-        console.error(error);
+        return { sourceNode: source };
     });
 }
 exports.processArrayBuffer = processArrayBuffer;
@@ -1043,14 +1042,22 @@ var state = {
 };
 var actions = {
     setFile: function setFile(file) {
-        return function (state) {
+        return function (state, actions) {
             console.log(file);
             var reader = new FileReader();
             reader.onload = function () {
-                audio_1.processArrayBuffer(reader.result, state.fftSize, state.scale);
+                if (state.sourceNode) state.sourceNode.stop();
+                audio_1.processArrayBuffer(reader.result, state.fftSize, state.scale).then(function (result) {
+                    actions.setProcessResult(result.sourceNode);
+                });
             };
             reader.readAsArrayBuffer(file);
             return state;
+        };
+    },
+    setProcessResult: function setProcessResult(sourceNode) {
+        return function (state) {
+            return { sourceNode: sourceNode };
         };
     },
     setFftSize: function setFftSize(value) {
@@ -1069,6 +1076,7 @@ var actions = {
 var view = function view(state, actions) {
     return hyperapp_1.h("div", { "class": "section" }, hyperapp_1.h("audio", { id: "player", controls: true }), hyperapp_1.h("div", { "class": "field" }, hyperapp_1.h("input", { type: "file", accept: "audio/*", capture: "microphone", onchange: function onchange(event) {
             actions.setFile(event.target.files[0]);
+            event.target.value = '';
         } })), hyperapp_1.h("div", { "class": "field" }, hyperapp_1.h("label", { "class": "label" }, "FFT Size"), hyperapp_1.h("div", { "class": "control" }, hyperapp_1.h("input", { "class": "input", value: state.fftSize, oninput: function oninput(event) {
             actions.setFftSize(Number(event.target.value));
         } }))), hyperapp_1.h("div", { "class": "field" }, hyperapp_1.h("label", { "class": "label" }, "Scale"), hyperapp_1.h("div", { "class": "control" }, hyperapp_1.h("input", { "class": "input", type: "number", value: state.scale, oninput: function oninput(event) {
@@ -1105,7 +1113,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = '' || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + '54784' + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + '57613' + '/');
   ws.onmessage = function (event) {
     var data = JSON.parse(event.data);
 

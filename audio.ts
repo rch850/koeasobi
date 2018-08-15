@@ -2,12 +2,16 @@ import FFT from 'fft.js'
 
 const audioCtx = new window.AudioContext()
 
+export interface ProcessArrayBufferResult {
+  sourceNode?: AudioBufferSourceNode
+}
+
 export function processArrayBuffer(
   arrayBuffer: ArrayBuffer,
   fftSize: number,
   scale: number
-) {
-  audioCtx.decodeAudioData(arrayBuffer).then(
+): Promise<ProcessArrayBufferResult> {
+  return audioCtx.decodeAudioData(arrayBuffer).then(
     decodedData => {
       console.log(decodedData)
 
@@ -16,9 +20,7 @@ export function processArrayBuffer(
       source.buffer = processAudioBuffer(decodedData, fftSize, scale)
       source.connect(audioCtx.destination)
       source.start()
-    },
-    error => {
-      console.error(error)
+      return { sourceNode: source }
     }
   )
 }
