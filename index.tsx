@@ -8,7 +8,6 @@ interface State {
   transformedUrl: string
   fftSize: number
   scale: number
-  sourceNode?: AudioBufferSourceNode
 }
 
 const state: State = {
@@ -32,7 +31,6 @@ const actions: ActionsType<State, Actions> = {
 
     let reader = new FileReader()
     reader.onload = () => {
-      if (state.sourceNode) state.sourceNode.stop()
       processArrayBuffer(
         reader.result as ArrayBuffer,
         state.fftSize,

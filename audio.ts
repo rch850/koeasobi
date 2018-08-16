@@ -12,12 +12,12 @@ export function processArrayBuffer(
   fftSize: number,
   scale: number
 ): Promise<ProcessArrayBufferResult> {
-  return audioCtx.decodeAudioData(arrayBuffer).then(decodedData => {
-    console.log(decodedData)
+  return audioCtx.decodeAudioData(arrayBuffer).then(audioBuffer => {
+    console.log(audioBuffer)
 
     return {
-      source: decodedData,
-      transformed: processAudioBuffer(decodedData, fftSize, scale)
+      source: audioBuffer,
+      transformed: processAudioBuffer(audioBuffer, fftSize, scale)
     }
   })
 }

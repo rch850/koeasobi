@@ -958,11 +958,11 @@ exports.__esModule = true;
 var fft_js_1 = __importDefault(require("fft.js"));
 var audioCtx = new window.AudioContext();
 function processArrayBuffer(arrayBuffer, fftSize, scale) {
-    return audioCtx.decodeAudioData(arrayBuffer).then(function (decodedData) {
-        console.log(decodedData);
+    return audioCtx.decodeAudioData(arrayBuffer).then(function (audioBuffer) {
+        console.log(audioBuffer);
         return {
-            source: decodedData,
-            transformed: processAudioBuffer(decodedData, fftSize, scale)
+            source: audioBuffer,
+            transformed: processAudioBuffer(audioBuffer, fftSize, scale)
         };
     });
 }
@@ -1095,7 +1095,6 @@ var actions = {
             console.log(file);
             var reader = new FileReader();
             reader.onload = function () {
-                if (state.sourceNode) state.sourceNode.stop();
                 audio_1.processArrayBuffer(reader.result, state.fftSize, state.scale).then(function (result) {
                     actions.setSourceAudioBuffer(result.source);
                     actions.setTransformedAudioBuffer(result.transformed);
