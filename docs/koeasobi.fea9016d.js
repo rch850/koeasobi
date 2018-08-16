@@ -980,9 +980,11 @@ function processAudioBuffer(audioBuffer, fftSize, scale) {
         if (channel !== 0) {
             continue;
         }
-        var myImageData = canvasContext.createImageData(512, 512);
+        var imageData = canvasContext.createImageData(1024, 512);
         var ratio = 1.059463094;
         var chunkCount = Math.floor(channelData.length / fftSize);
+        var freqScale = 2;
+        var powerScale = 10;
         for (var chunk = 0; chunk < chunkCount; chunk++) {
             var f = new fft_js_1["default"](fftSize);
             var inArray = new Array(fftSize);
@@ -992,10 +994,11 @@ function processAudioBuffer(audioBuffer, fftSize, scale) {
             // console.log(inArray)
             var spectrum = f.createComplexArray();
             f.realTransform(spectrum, inArray);
-            var maxInfo = { freq: 0, value: 0 };
-            for (var i = 0; i < spectrum.length; i++) {
-                if (maxInfo.value < spectrum[i]) {
-                    maxInfo = { freq: i, value: spectrum[i] };
+            var maxInfo = { freq: 0, power: 0 };
+            for (var i = 0; i < spectrum.length; i += 2) {
+                var power = spectrum[i] * spectrum[i] + spectrum[i + 1] * spectrum[i + 1];
+                if (maxInfo.power < power) {
+                    maxInfo = { freq: i, power: power };
                 }
             }
             var spectrumNew = f.createComplexArray();
@@ -1005,14 +1008,19 @@ function processAudioBuffer(audioBuffer, fftSize, scale) {
             f.completeSpectrum(spectrumNew);
             // console.log(spectrumNew)
             // draw spectrum
-            for (var y = 0; y < spectrumNew.length; y += 2) {
-                var yy = Math.floor(y / (fftSize * 2) * 512);
-                myImageData.data[(yy * 512 + chunk) * 4] += spectrumNew[y] * 10;
-                myImageData.data[(yy * 512 + chunk) * 4 + 3] = 255;
+            for (var y = 0; y < spectrumNew.length / 2; y += 2) {
+                var yy_1 = imageData.height - Math.floor(y / fftSize * freqScale * imageData.height);
+                if (yy_1 < 0) continue;
+                var power = Math.sqrt(spectrumNew[y] * spectrumNew[y] + spectrumNew[y + 1] * spectrumNew[y + 1]);
+                imageData.data[(yy_1 * imageData.width + chunk) * 4] += power * powerScale;
+                imageData.data[(yy_1 * imageData.width + chunk) * 4 + 3] = 255;
             }
-            myImageData.data[(maxInfo.freq * 512 + chunk) * 4 + 0] = 255;
-            myImageData.data[(maxInfo.freq * 512 + chunk) * 4 + 1] = 255;
-            myImageData.data[(maxInfo.freq * 512 + chunk) * 4 + 2] = 255;
+            var yy = imageData.height - Math.floor(maxInfo.freq / fftSize * freqScale * imageData.height);
+            if (yy >= 0) {
+                imageData.data[(yy * imageData.width + chunk) * 4 + 0] = 255;
+                imageData.data[(yy * imageData.width + chunk) * 4 + 1] = 255;
+                imageData.data[(yy * imageData.width + chunk) * 4 + 2] = 255;
+            }
             // console.log(`${maxInfo.freq} => ${maxInfo.value}`)
             var resultComplex = f.createComplexArray();
             f.inverseTransform(resultComplex, spectrumNew);
@@ -1022,7 +1030,7 @@ function processAudioBuffer(audioBuffer, fftSize, scale) {
                 newChannelData[i + fftSize * chunk] = resultReal[i];
             }
         }
-        canvasContext.putImageData(myImageData, 0, 0);
+        canvasContext.putImageData(imageData, 0, 0);
         console.log('finished');
     }
     return newAudioBuffer;

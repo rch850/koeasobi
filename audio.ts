@@ -47,9 +47,11 @@ function processAudioBuffer(
       continue
     }
 
-    const myImageData = canvasContext.createImageData(512, 512)
+    const imageData = canvasContext.createImageData(1024, 512)
     const ratio = 1.059463094
     const chunkCount = Math.floor(channelData.length / fftSize)
+    const freqScale = 2
+    const powerScale = 10
 
     for (let chunk = 0; chunk < chunkCount; chunk++) {
       const f = new FFT(fftSize)
@@ -62,10 +64,12 @@ function processAudioBuffer(
       const spectrum = f.createComplexArray()
       f.realTransform(spectrum, inArray)
 
-      let maxInfo = { freq: 0, value: 0 }
-      for (let i = 0; i < spectrum.length; i++) {
-        if (maxInfo.value < spectrum[i]) {
-          maxInfo = { freq: i, value: spectrum[i] }
+      let maxInfo = { freq: 0, power: 0 }
+      for (let i = 0; i < spectrum.length; i += 2) {
+        const power =
+          spectrum[i] * spectrum[i] + spectrum[i + 1] * spectrum[i + 1]
+        if (maxInfo.power < power) {
+          maxInfo = { freq: i, power }
         }
       }
 
@@ -78,14 +82,26 @@ function processAudioBuffer(
       // console.log(spectrumNew)
 
       // draw spectrum
-      for (let y = 0; y < spectrumNew.length; y += 2) {
-        const yy = Math.floor((y / (fftSize * 2)) * 512)
-        myImageData.data[(yy * 512 + chunk) * 4] += spectrumNew[y] * 10
-        myImageData.data[(yy * 512 + chunk) * 4 + 3] = 255
+      for (let y = 0; y < spectrumNew.length / 2; y += 2) {
+        const yy =
+          imageData.height -
+          Math.floor((y / fftSize) * freqScale * imageData.height)
+        if (yy < 0) continue
+        const power = Math.sqrt(
+          spectrumNew[y] * spectrumNew[y] +
+            spectrumNew[y + 1] * spectrumNew[y + 1]
+        )
+        imageData.data[(yy * imageData.width + chunk) * 4] += power * powerScale
+        imageData.data[(yy * imageData.width + chunk) * 4 + 3] = 255
       }
-      myImageData.data[(maxInfo.freq * 512 + chunk) * 4 + 0] = 255
-      myImageData.data[(maxInfo.freq * 512 + chunk) * 4 + 1] = 255
-      myImageData.data[(maxInfo.freq * 512 + chunk) * 4 + 2] = 255
+      const yy =
+        imageData.height -
+        Math.floor((maxInfo.freq / fftSize) * freqScale * imageData.height)
+      if (yy >= 0) {
+        imageData.data[(yy * imageData.width + chunk) * 4 + 0] = 255
+        imageData.data[(yy * imageData.width + chunk) * 4 + 1] = 255
+        imageData.data[(yy * imageData.width + chunk) * 4 + 2] = 255
+      }
       // console.log(`${maxInfo.freq} => ${maxInfo.value}`)
 
       const resultComplex = f.createComplexArray()
@@ -98,7 +114,7 @@ function processAudioBuffer(
       }
     }
 
-    canvasContext.putImageData(myImageData, 0, 0)
+    canvasContext.putImageData(imageData, 0, 0)
     console.log('finished')
   }
   return newAudioBuffer
