@@ -960,27 +960,24 @@ var audioCtx = new window.AudioContext();
 function processArrayBuffer(arrayBuffer, fftSize, scale) {
     return audioCtx.decodeAudioData(arrayBuffer).then(function (decodedData) {
         console.log(decodedData);
-        // process buffer and play it.
-        var source = audioCtx.createBufferSource();
-        source.buffer = processAudioBuffer(decodedData, fftSize, scale);
-        source.connect(audioCtx.destination);
-        source.start();
-        return { sourceNode: source };
+        return {
+            source: decodedData,
+            transformed: processAudioBuffer(decodedData, fftSize, scale)
+        };
     });
 }
 exports.processArrayBuffer = processArrayBuffer;
 function processAudioBuffer(audioBuffer, fftSize, scale) {
     console.log(audioBuffer.length);
+    var newAudioBuffer = audioCtx.createBuffer(audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate);
     var canvas = document.querySelector('canvas');
     var canvasContext = canvas.getContext('2d');
     for (var channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
         var channelData = audioBuffer.getChannelData(channel);
+        var newChannelData = newAudioBuffer.getChannelData(channel);
         console.log(channelData.length);
         // mute other channels than 1st.
         if (channel !== 0) {
-            for (var i = 0; i < channelData.length; i++) {
-                channelData[i] = 0;
-            }
             continue;
         }
         var myImageData = canvasContext.createImageData(512, 512);
@@ -1022,14 +1019,64 @@ function processAudioBuffer(audioBuffer, fftSize, scale) {
             var resultReal = f.fromComplexArray(resultComplex);
             // console.log(resultReal)
             for (var i = 0; i < resultReal.length; i++) {
-                channelData[i + fftSize * chunk] = resultReal[i];
+                newChannelData[i + fftSize * chunk] = resultReal[i];
             }
         }
         canvasContext.putImageData(myImageData, 0, 0);
         console.log('finished');
     }
-    return audioBuffer;
+    return newAudioBuffer;
 }
+// https://stackoverflow.com/a/30045041/1081774
+// Convert a audio-buffer segment to a Blob using WAVE representation
+function bufferToWave(abuffer, offset, len) {
+    var numOfChan = abuffer.numberOfChannels,
+        length = len * numOfChan * 2 + 44,
+        buffer = new ArrayBuffer(length),
+        view = new DataView(buffer),
+        channels = [],
+        i,
+        sample,
+        pos = 0;
+    // write WAVE header
+    setUint32(0x46464952); // "RIFF"
+    setUint32(length - 8); // file length - 8
+    setUint32(0x45564157); // "WAVE"
+    setUint32(0x20746d66); // "fmt " chunk
+    setUint32(16); // length = 16
+    setUint16(1); // PCM (uncompressed)
+    setUint16(numOfChan);
+    setUint32(abuffer.sampleRate);
+    setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
+    setUint16(numOfChan * 2); // block-align
+    setUint16(16); // 16-bit (hardcoded in this demo)
+    setUint32(0x61746164); // "data" - chunk
+    setUint32(length - pos - 4); // chunk length
+    // write interleaved data
+    for (i = 0; i < abuffer.numberOfChannels; i++) {
+        channels.push(abuffer.getChannelData(i));
+    }while (pos < length) {
+        for (i = 0; i < numOfChan; i++) {
+            // interleave channels
+            sample = Math.max(-1, Math.min(1, channels[i][offset])); // clamp
+            sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0; // scale to 16-bit signed int
+            view.setInt16(pos, sample, true); // update data chunk
+            pos += 2;
+        }
+        offset++; // next source sample
+    }
+    // create Blob
+    return new Blob([buffer], { type: 'audio/wav' });
+    function setUint16(data) {
+        view.setUint16(pos, data, true);
+        pos += 2;
+    }
+    function setUint32(data) {
+        view.setUint32(pos, data, true);
+        pos += 4;
+    }
+}
+exports.bufferToWave = bufferToWave;
 },{"fft.js":"node_modules/fft.js/lib/fft.js"}],"index.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -1037,6 +1084,8 @@ exports.__esModule = true;
 var hyperapp_1 = require("hyperapp");
 var audio_1 = require("./audio");
 var state = {
+    sourceUrl: '',
+    transformedUrl: '',
     fftSize: 4096,
     scale: 0
 };
@@ -1048,16 +1097,30 @@ var actions = {
             reader.onload = function () {
                 if (state.sourceNode) state.sourceNode.stop();
                 audio_1.processArrayBuffer(reader.result, state.fftSize, state.scale).then(function (result) {
-                    actions.setProcessResult(result.sourceNode);
+                    actions.setSourceAudioBuffer(result.source);
+                    actions.setTransformedAudioBuffer(result.transformed);
                 });
             };
             reader.readAsArrayBuffer(file);
             return state;
         };
     },
-    setProcessResult: function setProcessResult(sourceNode) {
+    setSourceAudioBuffer: function setSourceAudioBuffer(buffer) {
         return function (state) {
-            return { sourceNode: sourceNode };
+            if (state.sourceUrl !== '') {
+                URL.revokeObjectURL(state.sourceUrl);
+            }
+            var url = URL.createObjectURL(audio_1.bufferToWave(buffer, 0, buffer.length));
+            return { source: buffer, sourceUrl: url };
+        };
+    },
+    setTransformedAudioBuffer: function setTransformedAudioBuffer(buffer) {
+        return function (state) {
+            if (state.transformedUrl !== '') {
+                URL.revokeObjectURL(state.transformedUrl);
+            }
+            var url = URL.createObjectURL(audio_1.bufferToWave(buffer, 0, buffer.length));
+            return { transformed: buffer, transformedUrl: url };
         };
     },
     setFftSize: function setFftSize(value) {
@@ -1074,7 +1137,7 @@ var actions = {
     }
 };
 var view = function view(state, actions) {
-    return hyperapp_1.h("div", { "class": "section" }, hyperapp_1.h("audio", { id: "player", controls: true }), hyperapp_1.h("div", { "class": "field" }, hyperapp_1.h("input", { type: "file", accept: "audio/*", capture: "microphone", onchange: function onchange(event) {
+    return hyperapp_1.h("div", { "class": "section" }, "source: ", hyperapp_1.h("audio", { controls: true, src: state.sourceUrl }), "transformed: ", hyperapp_1.h("audio", { controls: true, src: state.transformedUrl }), hyperapp_1.h("div", { "class": "field" }, hyperapp_1.h("input", { type: "file", accept: "audio/*", capture: "microphone", onchange: function onchange(event) {
             actions.setFile(event.target.files[0]);
             event.target.value = '';
         } })), hyperapp_1.h("div", { "class": "field" }, hyperapp_1.h("label", { "class": "label" }, "FFT Size"), hyperapp_1.h("div", { "class": "control" }, hyperapp_1.h("input", { "class": "input", value: state.fftSize, oninput: function oninput(event) {
@@ -1113,7 +1176,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = '' || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + '57613' + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + '61895' + '/');
   ws.onmessage = function (event) {
     var data = JSON.parse(event.data);
 

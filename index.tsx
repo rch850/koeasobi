@@ -1,20 +1,27 @@
 import { h, app, ActionsType, View } from 'hyperapp'
-import { processArrayBuffer } from './audio'
+import { processArrayBuffer, bufferToWave } from './audio'
 
 interface State {
+  source?: AudioBuffer
+  sourceUrl: string
+  transformed?: AudioBuffer
+  transformedUrl: string
   fftSize: number
   scale: number
   sourceNode?: AudioBufferSourceNode
 }
 
 const state: State = {
+  sourceUrl: '',
+  transformedUrl: '',
   fftSize: 4096,
   scale: 0
 }
 
 interface Actions {
   setFile(file: File): State
-  setProcessResult(sourceNode: AudioBufferSourceNode): State
+  setSourceAudioBuffer(buffer: AudioBuffer): State
+  setTransformedAudioBuffer(buffer: AudioBuffer): State
   setFftSize(value: number): State
   setScale(value: number): State
 }
@@ -26,17 +33,31 @@ const actions: ActionsType<State, Actions> = {
     let reader = new FileReader()
     reader.onload = () => {
       if (state.sourceNode) state.sourceNode.stop()
-      processArrayBuffer(reader.result, state.fftSize, state.scale).then(
-        result => {
-          actions.setProcessResult(result.sourceNode)
-        }
-      )
+      processArrayBuffer(
+        reader.result as ArrayBuffer,
+        state.fftSize,
+        state.scale
+      ).then(result => {
+        actions.setSourceAudioBuffer(result.source)
+        actions.setTransformedAudioBuffer(result.transformed)
+      })
     }
     reader.readAsArrayBuffer(file)
     return state
   },
-  setProcessResult: (sourceNode: AudioBufferSourceNode) => state => {
-    return { sourceNode }
+  setSourceAudioBuffer: (buffer: AudioBuffer) => state => {
+    if (state.sourceUrl !== '') {
+      URL.revokeObjectURL(state.sourceUrl)
+    }
+    const url = URL.createObjectURL(bufferToWave(buffer, 0, buffer.length))
+    return { source: buffer, sourceUrl: url }
+  },
+  setTransformedAudioBuffer: (buffer: AudioBuffer) => state => {
+    if (state.transformedUrl !== '') {
+      URL.revokeObjectURL(state.transformedUrl)
+    }
+    const url = URL.createObjectURL(bufferToWave(buffer, 0, buffer.length))
+    return { transformed: buffer, transformedUrl: url }
   },
   setFftSize: (value: number) => state => {
     if (isNaN(value)) return
@@ -50,8 +71,8 @@ const actions: ActionsType<State, Actions> = {
 
 const view: View<State, Actions> = (state, actions) => (
   <div class="section">
-    <audio id="player" controls />
-
+    source: <audio controls src={state.sourceUrl} />
+    transformed: <audio controls src={state.transformedUrl} />
     <div class="field">
       <input
         type="file"
@@ -63,7 +84,6 @@ const view: View<State, Actions> = (state, actions) => (
         }}
       />
     </div>
-
     <div class="field">
       <label class="label">FFT Size</label>
       <div class="control">
@@ -76,7 +96,6 @@ const view: View<State, Actions> = (state, actions) => (
         />
       </div>
     </div>
-
     <div class="field">
       <label class="label">Scale</label>
       <div class="control">
@@ -90,7 +109,6 @@ const view: View<State, Actions> = (state, actions) => (
         />
       </div>
     </div>
-
     <canvas id="canvas" width="512" height="512" />
   </div>
 )
