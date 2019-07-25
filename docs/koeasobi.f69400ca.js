@@ -5,8 +5,6 @@
 //
 // anything defined in a previous bundle is accessed via the
 // orig method which is the require for previous bundles
-
-// eslint-disable-next-line no-global-assign
 parcelRequire = (function (modules, cache, entry, globalName) {
   // Save the require from previous bundle to this closure if any
   var previousRequire = typeof parcelRequire === 'function' && parcelRequire;
@@ -42,6 +40,7 @@ parcelRequire = (function (modules, cache, entry, globalName) {
       }
 
       localRequire.resolve = resolve;
+      localRequire.cache = {};
 
       var module = cache[name] = new newRequire.Module(name);
 
@@ -76,8 +75,16 @@ parcelRequire = (function (modules, cache, entry, globalName) {
     }, {}];
   };
 
+  var error;
   for (var i = 0; i < entry.length; i++) {
-    newRequire(entry[i]);
+    try {
+      newRequire(entry[i]);
+    } catch (e) {
+      // Save first error but execute all entries
+      if (!error) {
+        error = e;
+      }
+    }
   }
 
   if (entry.length) {
@@ -102,6 +109,13 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   }
 
   // Override the current require with this new one
+  parcelRequire = newRequire;
+
+  if (error) {
+    // throw error from earlier, _after updating parcelRequire_
+    throw error;
+  }
+
   return newRequire;
 })({"node_modules/hyperapp/src/index.js":[function(require,module,exports) {
 "use strict";
@@ -111,6 +125,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.h = h;
 exports.app = app;
+
 function h(name, attributes) {
   var rest = [];
   var children = [];
@@ -120,6 +135,7 @@ function h(name, attributes) {
 
   while (rest.length) {
     var node = rest.pop();
+
     if (node && node.pop) {
       for (length = node.length; length--;) {
         rest.push(node[length]);
@@ -146,9 +162,7 @@ function app(state, actions, view, container) {
   var isRecycling = true;
   var globalState = clone(state);
   var wiredActions = wireStateToActions([], globalState, clone(actions));
-
   scheduleRender();
-
   return wiredActions;
 
   function recycleElement(element) {
@@ -168,7 +182,6 @@ function app(state, actions, view, container) {
 
   function render() {
     skipRender = !skipRender;
-
     var node = resolveNode(view);
 
     if (container && !skipRender) {
@@ -191,6 +204,7 @@ function app(state, actions, view, container) {
     var out = {};
 
     for (var i in target) out[i] = target[i];
+
     for (var i in source) out[i] = source[i];
 
     return out;
@@ -198,18 +212,22 @@ function app(state, actions, view, container) {
 
   function setPartialState(path, value, source) {
     var target = {};
+
     if (path.length) {
       target[path[0]] = path.length > 1 ? setPartialState(path.slice(1), value, source[path[0]]) : value;
       return clone(source, target);
     }
+
     return value;
   }
 
   function getPartialState(path, source) {
     var i = 0;
+
     while (i < path.length) {
       source = source[path[i++]];
     }
+
     return source;
   }
 
@@ -246,12 +264,19 @@ function app(state, actions, view, container) {
 
   function updateAttribute(element, name, value, oldValue, isSvg) {
     if (name === "key") {} else if (name === "style") {
-      for (var i in clone(oldValue, value)) {
-        var style = value == null || value[i] == null ? "" : value[i];
-        if (i[0] === "-") {
-          element[name].setProperty(i, style);
-        } else {
-          element[name][i] = style;
+      if (typeof value === "string") {
+        element.style.cssText = value;
+      } else {
+        if (typeof oldValue === "string") oldValue = element.style.cssText = "";
+
+        for (var i in clone(oldValue, value)) {
+          var style = value == null || value[i] == null ? "" : value[i];
+
+          if (i[0] === "-") {
+            element.style.setProperty(i, style);
+          } else {
+            element.style[i] = style;
+          }
         }
       }
     } else {
@@ -287,8 +312,8 @@ function app(state, actions, view, container) {
 
   function createElement(node, isSvg) {
     var element = typeof node === "string" || typeof node === "number" ? document.createTextNode(node) : (isSvg = isSvg || node.nodeName === "svg") ? document.createElementNS("http://www.w3.org/2000/svg", node.nodeName) : document.createElement(node.nodeName);
-
     var attributes = node.attributes;
+
     if (attributes) {
       if (attributes.oncreate) {
         lifecycle.push(function () {
@@ -316,6 +341,7 @@ function app(state, actions, view, container) {
     }
 
     var cb = isRecycling ? attributes.oncreate : attributes.onupdate;
+
     if (cb) {
       lifecycle.push(function () {
         cb(element, oldAttributes);
@@ -325,6 +351,7 @@ function app(state, actions, view, container) {
 
   function removeChildren(element, node) {
     var attributes = node.attributes;
+
     if (attributes) {
       for (var i = 0; i < node.children.length; i++) {
         removeChildren(element.childNodes[i], node.children[i]);
@@ -334,6 +361,7 @@ function app(state, actions, view, container) {
         attributes.ondestroy(element);
       }
     }
+
     return element;
   }
 
@@ -343,6 +371,7 @@ function app(state, actions, view, container) {
     }
 
     var cb = node.attributes && node.attributes.onremove;
+
     if (cb) {
       cb(element, done);
     } else {
@@ -364,7 +393,6 @@ function app(state, actions, view, container) {
       element.nodeValue = node;
     } else {
       updateElement(element, oldNode.attributes, node.attributes, isSvg = isSvg || node.nodeName === "svg");
-
       var oldKeyed = {};
       var newKeyed = {};
       var oldElements = [];
@@ -373,8 +401,8 @@ function app(state, actions, view, container) {
 
       for (var i = 0; i < oldChildren.length; i++) {
         oldElements[i] = element.childNodes[i];
-
         var oldKey = getKey(oldChildren[i]);
+
         if (oldKey != null) {
           oldKeyed[oldKey] = [oldElements[i], oldChildren[i]];
         }
@@ -396,6 +424,7 @@ function app(state, actions, view, container) {
           if (oldKey == null) {
             removeElement(element, oldElements[i], oldChildren[i]);
           }
+
           i++;
           continue;
         }
@@ -405,6 +434,7 @@ function app(state, actions, view, container) {
             patch(element, oldElements[i], oldChildren[i], children[k], isSvg);
             k++;
           }
+
           i++;
         } else {
           var keyedNode = oldKeyed[newKey] || [];
@@ -427,6 +457,7 @@ function app(state, actions, view, container) {
         if (getKey(oldChildren[i]) == null) {
           removeElement(element, oldElements[i], oldChildren[i]);
         }
+
         i++;
       }
 
@@ -436,6 +467,7 @@ function app(state, actions, view, container) {
         }
       }
     }
+
     return element;
   }
 }
@@ -952,212 +984,323 @@ FFT.prototype._singleRealTransform4 = function _singleRealTransform4(outOff,
 "use strict";
 
 var __importDefault = this && this.__importDefault || function (mod) {
-    return mod && mod.__esModule ? mod : { "default": mod };
+  return mod && mod.__esModule ? mod : {
+    "default": mod
+  };
 };
+
 exports.__esModule = true;
+
 var fft_js_1 = __importDefault(require("fft.js"));
+
 var audioCtx = new window.AudioContext();
+
 function processArrayBuffer(arrayBuffer, fftSize, scale) {
-    return audioCtx.decodeAudioData(arrayBuffer).then(function (audioBuffer) {
-        console.log(audioBuffer);
-        return {
-            source: audioBuffer,
-            transformed: processAudioBuffer(audioBuffer, fftSize, scale)
-        };
-    });
+  return audioCtx.decodeAudioData(arrayBuffer).then(function (audioBuffer) {
+    console.log(audioBuffer);
+    return {
+      source: audioBuffer,
+      transformed: processAudioBuffer(audioBuffer, fftSize, scale)
+    };
+  });
 }
+
 exports.processArrayBuffer = processArrayBuffer;
+
 function processAudioBuffer(audioBuffer, fftSize, scale) {
-    console.log(audioBuffer.length);
-    var newAudioBuffer = audioCtx.createBuffer(audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate);
-    var canvas = document.querySelector('canvas');
-    var canvasContext = canvas.getContext('2d');
-    for (var channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
-        var channelData = audioBuffer.getChannelData(channel);
-        var newChannelData = newAudioBuffer.getChannelData(channel);
-        console.log(channelData.length);
-        // mute other channels than 1st.
-        if (channel !== 0) {
-            continue;
-        }
-        var imageData = canvasContext.createImageData(1024, 512);
-        var ratio = 1.059463094;
-        var chunkCount = Math.floor(channelData.length / fftSize);
-        var freqScale = 2;
-        var powerScale = 10;
-        for (var chunk = 0; chunk < chunkCount; chunk++) {
-            var f = new fft_js_1["default"](fftSize);
-            var inArray = new Array(fftSize);
-            for (var i = 0; i < inArray.length; i++) {
-                inArray[i] = channelData[i + fftSize * chunk];
-            }
-            // console.log(inArray)
-            var spectrum = f.createComplexArray();
-            f.realTransform(spectrum, inArray);
-            var maxInfo = { freq: 0, power: 0 };
-            for (var i = 0; i < spectrum.length; i += 2) {
-                var power = spectrum[i] * spectrum[i] + spectrum[i + 1] * spectrum[i + 1];
-                if (maxInfo.power < power) {
-                    maxInfo = { freq: i, power: power };
-                }
-            }
-            var spectrumNew = f.createComplexArray();
-            for (var i = 0; i < spectrum.length; i++) {
-                spectrumNew[Math.floor(i * Math.pow(ratio, scale))] = spectrum[i];
-            }
-            f.completeSpectrum(spectrumNew);
-            // console.log(spectrumNew)
-            // draw spectrum
-            for (var y = 0; y < spectrumNew.length / 2; y += 2) {
-                var yy_1 = imageData.height - Math.floor(y / fftSize * freqScale * imageData.height);
-                if (yy_1 < 0) continue;
-                var power = Math.sqrt(spectrumNew[y] * spectrumNew[y] + spectrumNew[y + 1] * spectrumNew[y + 1]);
-                imageData.data[(yy_1 * imageData.width + chunk) * 4] += power * powerScale;
-                imageData.data[(yy_1 * imageData.width + chunk) * 4 + 3] = 255;
-            }
-            var yy = imageData.height - Math.floor(maxInfo.freq / fftSize * freqScale * imageData.height);
-            if (yy >= 0) {
-                imageData.data[(yy * imageData.width + chunk) * 4 + 0] = 255;
-                imageData.data[(yy * imageData.width + chunk) * 4 + 1] = 255;
-                imageData.data[(yy * imageData.width + chunk) * 4 + 2] = 255;
-            }
-            // console.log(`${maxInfo.freq} => ${maxInfo.value}`)
-            var resultComplex = f.createComplexArray();
-            f.inverseTransform(resultComplex, spectrumNew);
-            var resultReal = f.fromComplexArray(resultComplex);
-            // console.log(resultReal)
-            for (var i = 0; i < resultReal.length; i++) {
-                newChannelData[i + fftSize * chunk] = resultReal[i];
-            }
-        }
-        canvasContext.putImageData(imageData, 0, 0);
-        console.log('finished');
+  console.log(audioBuffer.length);
+  var newAudioBuffer = audioCtx.createBuffer(audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate);
+  var canvas = document.querySelector('canvas');
+  var canvasContext = canvas.getContext('2d');
+
+  for (var channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+    var channelData = audioBuffer.getChannelData(channel);
+    var newChannelData = newAudioBuffer.getChannelData(channel);
+    console.log(channelData.length); // mute other channels than 1st.
+
+    if (channel !== 0) {
+      continue;
     }
-    return newAudioBuffer;
-}
-// https://stackoverflow.com/a/30045041/1081774
+
+    var imageData = canvasContext.createImageData(1024, 512);
+    var ratio = 1.059463094;
+    var chunkCount = Math.floor(channelData.length / fftSize);
+    var freqScale = 2;
+    var powerScale = 10;
+
+    for (var chunk = 0; chunk < chunkCount; chunk++) {
+      var f = new fft_js_1["default"](fftSize);
+      var inArray = new Array(fftSize);
+
+      for (var i = 0; i < inArray.length; i++) {
+        inArray[i] = channelData[i + fftSize * chunk];
+      } // console.log(inArray)
+
+
+      var spectrum = f.createComplexArray();
+      f.realTransform(spectrum, inArray);
+      var maxInfo = {
+        freq: 0,
+        power: 0
+      };
+
+      for (var i = 0; i < spectrum.length; i += 2) {
+        var power = spectrum[i] * spectrum[i] + spectrum[i + 1] * spectrum[i + 1];
+
+        if (maxInfo.power < power) {
+          maxInfo = {
+            freq: i,
+            power: power
+          };
+        }
+      }
+
+      var spectrumNew = f.createComplexArray();
+
+      for (var i = 0; i < spectrum.length; i++) {
+        spectrumNew[Math.floor(i * Math.pow(ratio, scale))] = spectrum[i];
+      }
+
+      f.completeSpectrum(spectrumNew); // console.log(spectrumNew)
+      // draw spectrum
+
+      for (var y = 0; y < spectrumNew.length / 2; y += 2) {
+        var yy_1 = imageData.height - Math.floor(y / fftSize * freqScale * imageData.height);
+        if (yy_1 < 0) continue;
+        var power = Math.sqrt(spectrumNew[y] * spectrumNew[y] + spectrumNew[y + 1] * spectrumNew[y + 1]);
+        imageData.data[(yy_1 * imageData.width + chunk) * 4] += power * powerScale;
+        imageData.data[(yy_1 * imageData.width + chunk) * 4 + 3] = 255;
+      }
+
+      var yy = imageData.height - Math.floor(maxInfo.freq / fftSize * freqScale * imageData.height);
+
+      if (yy >= 0) {
+        imageData.data[(yy * imageData.width + chunk) * 4 + 0] = 255;
+        imageData.data[(yy * imageData.width + chunk) * 4 + 1] = 255;
+        imageData.data[(yy * imageData.width + chunk) * 4 + 2] = 255;
+      } // console.log(`${maxInfo.freq} => ${maxInfo.value}`)
+
+
+      var resultComplex = f.createComplexArray();
+      f.inverseTransform(resultComplex, spectrumNew);
+      var resultReal = f.fromComplexArray(resultComplex); // console.log(resultReal)
+
+      for (var i = 0; i < resultReal.length; i++) {
+        newChannelData[i + fftSize * chunk] = resultReal[i];
+      }
+    }
+
+    canvasContext.putImageData(imageData, 0, 0);
+    console.log('finished');
+  }
+
+  return newAudioBuffer;
+} // https://stackoverflow.com/a/30045041/1081774
 // Convert a audio-buffer segment to a Blob using WAVE representation
+
+
 function bufferToWave(abuffer, offset, len) {
-    var numOfChan = abuffer.numberOfChannels,
-        length = len * numOfChan * 2 + 44,
-        buffer = new ArrayBuffer(length),
-        view = new DataView(buffer),
-        channels = [],
-        i,
-        sample,
-        pos = 0;
-    // write WAVE header
-    setUint32(0x46464952); // "RIFF"
-    setUint32(length - 8); // file length - 8
-    setUint32(0x45564157); // "WAVE"
-    setUint32(0x20746d66); // "fmt " chunk
-    setUint32(16); // length = 16
-    setUint16(1); // PCM (uncompressed)
-    setUint16(numOfChan);
-    setUint32(abuffer.sampleRate);
-    setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
-    setUint16(numOfChan * 2); // block-align
-    setUint16(16); // 16-bit (hardcoded in this demo)
-    setUint32(0x61746164); // "data" - chunk
-    setUint32(length - pos - 4); // chunk length
-    // write interleaved data
-    for (i = 0; i < abuffer.numberOfChannels; i++) {
-        channels.push(abuffer.getChannelData(i));
-    }while (pos < length) {
-        for (i = 0; i < numOfChan; i++) {
-            // interleave channels
-            sample = Math.max(-1, Math.min(1, channels[i][offset])); // clamp
-            sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0; // scale to 16-bit signed int
-            view.setInt16(pos, sample, true); // update data chunk
-            pos += 2;
-        }
-        offset++; // next source sample
+  var numOfChan = abuffer.numberOfChannels,
+      length = len * numOfChan * 2 + 44,
+      buffer = new ArrayBuffer(length),
+      view = new DataView(buffer),
+      channels = [],
+      i,
+      sample,
+      pos = 0; // write WAVE header
+
+  setUint32(0x46464952); // "RIFF"
+
+  setUint32(length - 8); // file length - 8
+
+  setUint32(0x45564157); // "WAVE"
+
+  setUint32(0x20746d66); // "fmt " chunk
+
+  setUint32(16); // length = 16
+
+  setUint16(1); // PCM (uncompressed)
+
+  setUint16(numOfChan);
+  setUint32(abuffer.sampleRate);
+  setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
+
+  setUint16(numOfChan * 2); // block-align
+
+  setUint16(16); // 16-bit (hardcoded in this demo)
+
+  setUint32(0x61746164); // "data" - chunk
+
+  setUint32(length - pos - 4); // chunk length
+  // write interleaved data
+
+  for (i = 0; i < abuffer.numberOfChannels; i++) {
+    channels.push(abuffer.getChannelData(i));
+  }
+
+  while (pos < length) {
+    for (i = 0; i < numOfChan; i++) {
+      // interleave channels
+      sample = Math.max(-1, Math.min(1, channels[i][offset])); // clamp
+
+      sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0; // scale to 16-bit signed int
+
+      view.setInt16(pos, sample, true); // update data chunk
+
+      pos += 2;
     }
-    // create Blob
-    return new Blob([buffer], { type: 'audio/wav' });
-    function setUint16(data) {
-        view.setUint16(pos, data, true);
-        pos += 2;
-    }
-    function setUint32(data) {
-        view.setUint32(pos, data, true);
-        pos += 4;
-    }
+
+    offset++; // next source sample
+  } // create Blob
+
+
+  return new Blob([buffer], {
+    type: 'audio/wav'
+  });
+
+  function setUint16(data) {
+    view.setUint16(pos, data, true);
+    pos += 2;
+  }
+
+  function setUint32(data) {
+    view.setUint32(pos, data, true);
+    pos += 4;
+  }
 }
+
 exports.bufferToWave = bufferToWave;
 },{"fft.js":"node_modules/fft.js/lib/fft.js"}],"index.tsx":[function(require,module,exports) {
 "use strict";
 
 exports.__esModule = true;
+
 var hyperapp_1 = require("hyperapp");
+
 var audio_1 = require("./audio");
+
 var state = {
-    sourceUrl: '',
-    transformedUrl: '',
-    fftSize: 4096,
-    scale: 0
+  sourceUrl: '',
+  transformedUrl: '',
+  fftSize: 4096,
+  scale: 0
 };
 var actions = {
-    setFile: function setFile(file) {
-        return function (state, actions) {
-            console.log(file);
-            var reader = new FileReader();
-            reader.onload = function () {
-                audio_1.processArrayBuffer(reader.result, state.fftSize, state.scale).then(function (result) {
-                    actions.setSourceAudioBuffer(result.source);
-                    actions.setTransformedAudioBuffer(result.transformed);
-                });
-            };
-            reader.readAsArrayBuffer(file);
-            return state;
-        };
-    },
-    setSourceAudioBuffer: function setSourceAudioBuffer(buffer) {
-        return function (state) {
-            if (state.sourceUrl !== '') {
-                URL.revokeObjectURL(state.sourceUrl);
-            }
-            var url = URL.createObjectURL(audio_1.bufferToWave(buffer, 0, buffer.length));
-            return { source: buffer, sourceUrl: url };
-        };
-    },
-    setTransformedAudioBuffer: function setTransformedAudioBuffer(buffer) {
-        return function (state) {
-            if (state.transformedUrl !== '') {
-                URL.revokeObjectURL(state.transformedUrl);
-            }
-            var url = URL.createObjectURL(audio_1.bufferToWave(buffer, 0, buffer.length));
-            return { transformed: buffer, transformedUrl: url };
-        };
-    },
-    setFftSize: function setFftSize(value) {
-        return function (state) {
-            if (isNaN(value)) return;
-            return { fftSize: value };
-        };
-    },
-    setScale: function setScale(value) {
-        return function (state) {
-            if (isNaN(value)) return;
-            return { scale: value };
-        };
-    }
+  setFile: function setFile(file) {
+    return function (state, actions) {
+      console.log(file);
+      var reader = new FileReader();
+
+      reader.onload = function () {
+        audio_1.processArrayBuffer(reader.result, state.fftSize, state.scale).then(function (result) {
+          actions.setSourceAudioBuffer(result.source);
+          actions.setTransformedAudioBuffer(result.transformed);
+        });
+      };
+
+      reader.readAsArrayBuffer(file);
+      return state;
+    };
+  },
+  setSourceAudioBuffer: function setSourceAudioBuffer(buffer) {
+    return function (state) {
+      if (state.sourceUrl !== '') {
+        URL.revokeObjectURL(state.sourceUrl);
+      }
+
+      var url = URL.createObjectURL(audio_1.bufferToWave(buffer, 0, buffer.length));
+      return {
+        source: buffer,
+        sourceUrl: url
+      };
+    };
+  },
+  setTransformedAudioBuffer: function setTransformedAudioBuffer(buffer) {
+    return function (state) {
+      if (state.transformedUrl !== '') {
+        URL.revokeObjectURL(state.transformedUrl);
+      }
+
+      var url = URL.createObjectURL(audio_1.bufferToWave(buffer, 0, buffer.length));
+      return {
+        transformed: buffer,
+        transformedUrl: url
+      };
+    };
+  },
+  setFftSize: function setFftSize(value) {
+    return function (state) {
+      if (isNaN(value)) return;
+      return {
+        fftSize: value
+      };
+    };
+  },
+  setScale: function setScale(value) {
+    return function (state) {
+      if (isNaN(value)) return;
+      return {
+        scale: value
+      };
+    };
+  }
 };
+
 var view = function view(state, actions) {
-    return hyperapp_1.h("div", { "class": "section" }, "source: ", hyperapp_1.h("audio", { controls: true, src: state.sourceUrl }), "transformed: ", hyperapp_1.h("audio", { controls: true, src: state.transformedUrl }), hyperapp_1.h("div", { "class": "field" }, hyperapp_1.h("input", { type: "file", accept: "audio/*", capture: "microphone", onchange: function onchange(event) {
-            actions.setFile(event.target.files[0]);
-            event.target.value = '';
-        } })), hyperapp_1.h("div", { "class": "field" }, hyperapp_1.h("label", { "class": "label" }, "FFT Size"), hyperapp_1.h("div", { "class": "control" }, hyperapp_1.h("input", { "class": "input", value: state.fftSize, oninput: function oninput(event) {
-            actions.setFftSize(Number(event.target.value));
-        } }))), hyperapp_1.h("div", { "class": "field" }, hyperapp_1.h("label", { "class": "label" }, "Scale"), hyperapp_1.h("div", { "class": "control" }, hyperapp_1.h("input", { "class": "input", type: "number", value: state.scale, oninput: function oninput(event) {
-            actions.setScale(Number(event.target.value));
-        } }))), hyperapp_1.h("canvas", { id: "canvas", width: "512", height: "512" }));
+  return hyperapp_1.h("div", {
+    "class": "section"
+  }, "source: ", hyperapp_1.h("audio", {
+    controls: true,
+    src: state.sourceUrl
+  }), "transformed: ", hyperapp_1.h("audio", {
+    controls: true,
+    src: state.transformedUrl
+  }), hyperapp_1.h("div", {
+    "class": "field"
+  }, hyperapp_1.h("input", {
+    type: "file",
+    accept: "audio/*",
+    capture: "microphone",
+    onchange: function onchange(event) {
+      actions.setFile(event.target.files[0]);
+      event.target.value = '';
+    }
+  })), hyperapp_1.h("div", {
+    "class": "field"
+  }, hyperapp_1.h("label", {
+    "class": "label"
+  }, "FFT Size"), hyperapp_1.h("div", {
+    "class": "control"
+  }, hyperapp_1.h("input", {
+    "class": "input",
+    value: state.fftSize,
+    oninput: function oninput(event) {
+      actions.setFftSize(Number(event.target.value));
+    }
+  }))), hyperapp_1.h("div", {
+    "class": "field"
+  }, hyperapp_1.h("label", {
+    "class": "label"
+  }, "Scale"), hyperapp_1.h("div", {
+    "class": "control"
+  }, hyperapp_1.h("input", {
+    "class": "input",
+    type: "number",
+    value: state.scale,
+    oninput: function oninput(event) {
+      actions.setScale(Number(event.target.value));
+    }
+  }))), hyperapp_1.h("canvas", {
+    id: "canvas",
+    width: "512",
+    height: "512"
+  }));
 };
+
 hyperapp_1.app(state, actions, view, document.body);
 },{"hyperapp":"node_modules/hyperapp/src/index.js","./audio":"audio.ts"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
-
 var OldModule = module.bundle.Module;
 
 function Module(moduleName) {
@@ -1173,36 +1316,55 @@ function Module(moduleName) {
       this._disposeCallbacks.push(fn);
     }
   };
-
   module.bundle.hotData = null;
 }
 
 module.bundle.Module = Module;
-
+var checkedAssets, assetsToAccept;
 var parent = module.bundle.parent;
+
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
-  var hostname = '' || location.hostname;
+  var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + '61895' + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "58662" + '/');
+
   ws.onmessage = function (event) {
+    checkedAssets = {};
+    assetsToAccept = [];
     var data = JSON.parse(event.data);
 
     if (data.type === 'update') {
-      console.clear();
-
-      data.assets.forEach(function (asset) {
-        hmrApply(global.parcelRequire, asset);
-      });
-
+      var handled = false;
       data.assets.forEach(function (asset) {
         if (!asset.isNew) {
-          hmrAccept(global.parcelRequire, asset.id);
+          var didAccept = hmrAcceptCheck(global.parcelRequire, asset.id);
+
+          if (didAccept) {
+            handled = true;
+          }
         }
+      }); // Enable HMR for CSS by default.
+
+      handled = handled || data.assets.every(function (asset) {
+        return asset.type === 'css' && asset.generated.js;
       });
+
+      if (handled) {
+        console.clear();
+        data.assets.forEach(function (asset) {
+          hmrApply(global.parcelRequire, asset);
+        });
+        assetsToAccept.forEach(function (v) {
+          hmrAcceptRun(v[0], v[1]);
+        });
+      } else {
+        window.location.reload();
+      }
     }
 
     if (data.type === 'reload') {
       ws.close();
+
       ws.onclose = function () {
         location.reload();
       };
@@ -1210,15 +1372,12 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
     if (data.type === 'error-resolved') {
       console.log('[parcel] ✨ Error resolved');
-
       removeErrorOverlay();
     }
 
     if (data.type === 'error') {
       console.error('[parcel] 🚨  ' + data.error.message + '\n' + data.error.stack);
-
       removeErrorOverlay();
-
       var overlay = createErrorOverlay(data);
       document.body.appendChild(overlay);
     }
@@ -1227,6 +1386,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
 function removeErrorOverlay() {
   var overlay = document.getElementById(OVERLAY_ID);
+
   if (overlay) {
     overlay.remove();
   }
@@ -1234,21 +1394,19 @@ function removeErrorOverlay() {
 
 function createErrorOverlay(data) {
   var overlay = document.createElement('div');
-  overlay.id = OVERLAY_ID;
+  overlay.id = OVERLAY_ID; // html encode message and stack trace
 
-  // html encode message and stack trace
   var message = document.createElement('div');
   var stackTrace = document.createElement('pre');
   message.innerText = data.error.message;
   stackTrace.innerText = data.error.stack;
-
   overlay.innerHTML = '<div style="background: black; font-size: 16px; color: white; position: fixed; height: 100%; width: 100%; top: 0px; left: 0px; padding: 30px; opacity: 0.85; font-family: Menlo, Consolas, monospace; z-index: 9999;">' + '<span style="background: red; padding: 2px 4px; border-radius: 2px;">ERROR</span>' + '<span style="top: 2px; margin-left: 5px; position: relative;">🚨</span>' + '<div style="font-size: 18px; font-weight: bold; margin-top: 20px;">' + message.innerHTML + '</div>' + '<pre>' + stackTrace.innerHTML + '</pre>' + '</div>';
-
   return overlay;
 }
 
 function getParents(bundle, id) {
   var modules = bundle.modules;
+
   if (!modules) {
     return [];
   }
@@ -1259,6 +1417,7 @@ function getParents(bundle, id) {
   for (k in modules) {
     for (d in modules[k][1]) {
       dep = modules[k][1][d];
+
       if (dep === id || Array.isArray(dep) && dep[dep.length - 1] === id) {
         parents.push(k);
       }
@@ -1274,6 +1433,7 @@ function getParents(bundle, id) {
 
 function hmrApply(bundle, asset) {
   var modules = bundle.modules;
+
   if (!modules) {
     return;
   }
@@ -1287,18 +1447,38 @@ function hmrApply(bundle, asset) {
   }
 }
 
-function hmrAccept(bundle, id) {
+function hmrAcceptCheck(bundle, id) {
   var modules = bundle.modules;
+
   if (!modules) {
     return;
   }
 
   if (!modules[id] && bundle.parent) {
-    return hmrAccept(bundle.parent, id);
+    return hmrAcceptCheck(bundle.parent, id);
   }
 
+  if (checkedAssets[id]) {
+    return;
+  }
+
+  checkedAssets[id] = true;
+  var cached = bundle.cache[id];
+  assetsToAccept.push([bundle, id]);
+
+  if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
+    return true;
+  }
+
+  return getParents(global.parcelRequire, id).some(function (id) {
+    return hmrAcceptCheck(global.parcelRequire, id);
+  });
+}
+
+function hmrAcceptRun(bundle, id) {
   var cached = bundle.cache[id];
   bundle.hotData = {};
+
   if (cached) {
     cached.hot.data = bundle.hotData;
   }
@@ -1311,18 +1491,15 @@ function hmrAccept(bundle, id) {
 
   delete bundle.cache[id];
   bundle(id);
-
   cached = bundle.cache[id];
+
   if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
     cached.hot._acceptCallbacks.forEach(function (cb) {
       cb();
     });
+
     return true;
   }
-
-  return getParents(global.parcelRequire, id).some(function (id) {
-    return hmrAccept(global.parcelRequire, id);
-  });
 }
 },{}]},{},["node_modules/parcel-bundler/src/builtins/hmr-runtime.js","index.tsx"], null)
-//# sourceMappingURL=/koeasobi/koeasobi.fea9016d.map
+//# sourceMappingURL=/koeasobi/koeasobi.f69400ca.js.map
